@@ -11,7 +11,7 @@ Low Accuracy Warning: Displays a warning when magnetometer data is unavailable.
 User Permission Handling: Asks for permission to access motion sensors on iOS.
 Installation & Usage
 Clone the repository:
-git clone https://github.com/yourusername/gyroscope-data-viewer.git
+git clone https://github.com/anking/gyroalignment.git
 Navigate to the project folder:
 cd gyroscope-data-viewer
 Open index.html in a browser on a mobile device.
