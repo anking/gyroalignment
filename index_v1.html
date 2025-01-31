@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gyroscope Data Viewer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            text-align: center;
+            padding: 20px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        .data {
+            font-size: 18px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Gyroscope Data</h1>
+        <div class="data" id="alpha">Alpha: Loading...</div>
+        <div class="data" id="beta">Beta: Loading...</div>
+        <div class="data" id="gamma">Gamma: Loading...</div>
+        <div class="data" id="permission">Permission Status: Not Requested</div>
+    </div>
+
+    <script>
+        const alphaDisplay = document.getElementById('alpha');
+        const betaDisplay = document.getElementById('beta');
+        const gammaDisplay = document.getElementById('gamma');
+        const permissionDisplay = document.getElementById('permission');
+
+        async function requestPermission() {
+            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                try {
+                    const permissionState = await DeviceOrientationEvent.requestPermission();
+                    permissionDisplay.textContent = `Permission Status: ${permissionState}`;
+
+                    if (permissionState === 'granted') {
+                        startListening();
+                    }
+                } catch (error) {
+                    permissionDisplay.textContent = `Permission Status: Denied (${error.message})`;
+                }
+            } else {
+                // Permissions not required (e.g., for non-iOS devices)
+                permissionDisplay.textContent = 'Permission Status: Not Required';
+                startListening();
+            }
+        }
+
+        function startListening() {
+            window.addEventListener('deviceorientation', (event) => {
+                const { alpha, beta, gamma } = event;
+                alphaDisplay.textContent = `Alpha (Z-axis rotation): ${alpha?.toFixed(2) || 'N/A'}`;
+                betaDisplay.textContent = `Beta (X-axis rotation): ${beta?.toFixed(2) || 'N/A'}`;
+                gammaDisplay.textContent = `Gamma (Y-axis rotation): ${gamma?.toFixed(2) || 'N/A'}`;
+            });
+        }
+
+        // Request permission on iOS devices or start listening directly
+        requestPermission();
+    </script>
+</body>
+</html>

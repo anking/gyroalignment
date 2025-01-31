@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gyroscope Data Viewer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background-color: #f4f4f4;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .container {
+            flex: 1;
+            position: relative;
+            width: 100%;
+        }
+        .data {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 18px;
+        }
+        .data-list {
+            position: absolute;
+            bottom: 100px;
+            left: 10px;
+            font-size: 16px;
+            max-height: 25%;
+            width: 90%;
+            overflow-y: auto;
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid #ccc;
+            padding: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            border-radius: 5px;
+        }
+        .bar-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+        .bar {
+            position: absolute;
+            opacity: 0.7;
+        }
+        .vertical-bar {
+            width: 5px;
+            height: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .horizontal-bar {
+            height: 5px;
+            width: 100%;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        .guideline {
+            position: absolute;
+            background-color: black;
+            opacity: 0.5;
+        }
+        .vertical-guideline {
+            width: 2px;
+            height: 50%;
+            left: 50%;
+            top: 25%;
+            transform: translateX(-50%);
+        }
+        .horizontal-guideline {
+            height: 2px;
+            width: 50%;
+            top: 50%;
+            left: 25%;
+            transform: translateY(-50%);
+        }
+        .permission-button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 10px 20px;
+            font-size: 18px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="data" id="data-output">
+            <div id="alpha">Alpha: Loading...</div>
+            <div id="beta">Beta: Loading...</div>
+            <div id="gamma">Gamma: Loading...</div>
+        </div>
+        <div class="data-list" id="fixes-list"></div>
+        <div class="bar-container">
+            <div class="bar vertical-bar" id="vertical-bar"></div>
+            <div class="bar horizontal-bar" id="horizontal-bar"></div>
+            <div class="guideline vertical-guideline"></div>
+            <div class="guideline horizontal-guideline"></div>
+        </div>
+        <button class="permission-button" id="permission-button">Enable Gyroscope</button>
+    </div>
+
+    <script>
+        const alphaDisplay = document.getElementById('alpha');
+        const betaDisplay = document.getElementById('beta');
+        const gammaDisplay = document.getElementById('gamma');
+        const verticalBar = document.getElementById('vertical-bar');
+        const horizontalBar = document.getElementById('horizontal-bar');
+        const fixesList = document.getElementById('fixes-list');
+        const permissionButton = document.getElementById('permission-button');
+
+        let alphaFix = null;
+        let betaFix = null;
+        let gammaFix = null;
+        let lastFixTime = 0;
+
+        function getColorForValue(value) {
+            const maxDeviation = 3; // Max deviation to be fully red
+            const normalized = Math.min(Math.abs(value) / maxDeviation, 1); // Normalize to 0-1
+            const green = Math.round((1 - normalized) * 255);
+            const red = Math.round(normalized * 255);
+            return `rgb(${red}, ${green}, 0)`;
+        }
+
+        function getCurrentTime() {
+            const now = new Date();
+            return `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+        }
+
+        function addFixToList(alpha, beta, gamma) {
+            const time = getCurrentTime();
+            const fixItem = document.createElement('div');
+            fixItem.textContent = `Fix at ${time}: Alpha=${alpha.toFixed(2)}, Beta=${beta.toFixed(2)}, Gamma=${gamma.toFixed(2)}`;
+            fixesList.appendChild(fixItem);
+            fixesList.scrollTop = fixesList.scrollHeight;
+        }
+
+        async function requestPermission() {
+            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                permissionButton.style.display = 'block';
+                permissionButton.addEventListener('click', async () => {
+                    try {
+                        const permission = await DeviceOrientationEvent.requestPermission();
+                        if (permission === 'granted') {
+                            permissionButton.style.display = 'none';
+                            startListening();
+                        } else {
+                            alert('Permission denied for gyroscope access.');
+                        }
+                    } catch (error) {
+                        alert('Error while requesting gyroscope permission: ' + error.message);
+                    }
+                });
+            } else {
+                startListening(); // Permissions not required on non-iOS devices
+            }
+        }
+
+        function startListening() {
+            window.addEventListener('deviceorientation', (event) => {
+                const { alpha, beta, gamma } = event;
+
+                // Update displayed data
+                alphaDisplay.textContent = `Alpha (Z-axis rotation): ${alpha?.toFixed(2) || 'N/A'}`;
+                betaDisplay.textContent = `Beta (X-axis rotation): ${beta?.toFixed(2) || 'N/A'}`;
+                gammaDisplay.textContent = `Gamma (Y-axis rotation): ${gamma?.toFixed(2) || 'N/A'}`;
+
+                // Update bar positions
+                const betaPercentage = ((beta + 90) / 180) * 100; // Beta range: -90 to 90
+                const gammaPercentage = ((gamma + 90) / 180) * 100; // Gamma range: -90 to 90
+
+                verticalBar.style.left = `${gammaPercentage}%`;
+                horizontalBar.style.top = `${betaPercentage}%`;
+
+                // Update bar colors
+                verticalBar.style.backgroundColor = getColorForValue(gamma);
+                horizontalBar.style.backgroundColor = getColorForValue(beta);
+
+                // Fix all angles if conditions are met
+                const now = Date.now();
+                if (Math.abs(beta) <= 0.1 && Math.abs(gamma) <= 0.1 && (alphaFix === null || now - lastFixTime >= 1000)) {
+                    alphaFix = alpha;
+                    betaFix = beta;
+                    gammaFix = gamma;
+                    lastFixTime = now;
+                    addFixToList(alphaFix, betaFix, gammaFix);
+                }
+            });
+        }
+
+        // Request permission on iOS or start listening directly
+        requestPermission();
+    </script>
+</body>
+</html>
